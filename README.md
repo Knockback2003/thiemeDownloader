@@ -1,5 +1,5 @@
 # thiemeDownloader
-Download all eRef Themie PDFs for each chapter in seconds
+Download all eRef Thieme PDFs for each chapter in seconds
 This script is tested under	Ubuntu 24.04.2 LTS with the normal chrome browser!
 
 # Installation
