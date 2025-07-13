@@ -4,10 +4,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from time import sleep
 import os
 
-# === CONFIG ===
-download_dir = os.path.expanduser("~/Downloads/thieme_pdfs")  # Zielordner
+download_dir = os.path.expanduser("~/Downloads/thieme_pdfs")
 
-# === SETUP ===
 os.makedirs(download_dir, exist_ok=True)
 
 chrome_options = Options()
@@ -15,9 +13,7 @@ chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 chrome_options.add_argument("--disable-gpu")
 chrome_options.add_argument("--disable-software-rasterizer")
-# chrome_options.add_argument("--headless=new")  # Nur aktivieren, wenn GUI nicht verfügbar ist
 
-# Temporäres Profil verwenden (um Konflikte zu vermeiden)
 temp_profile_dir = os.path.expanduser("~/temp_chrome_profile")
 chrome_options.add_argument(f"--user-data-dir={temp_profile_dir}")
 chrome_options.add_argument("--profile-directory=Default")
@@ -29,78 +25,116 @@ chrome_options.add_experimental_option("prefs", {
     "profile.default_content_settings.popups": 0
 })
 
-# ChromeDriver automatisch verwalten
 from selenium.webdriver.chrome.service import Service
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
-# === DOWNLOAD-PROZESS ===
 try:
-    print("🚀 Starte Downloads...")
+    print("Version: 1.1.0")
+    print("🚀 Start downloads...")
     
-    # Zuerst zur Thieme-Seite gehen für manuelle Anmeldung
-    print("🔐 Öffne Thieme-Seite für Anmeldung...")
+    print("🔐 Open Thieme-Site for User Auth...")
     driver.get("https://eref.thieme.de/")
-    input("📋 Bitte melde dich in dem geöffneten Browser an und drücke dann Enter um fortzufahren...")
+    input("📋 Please Login in the chrome window that just opened and press enter afterwards...")
     
-    # Interaktive Eingabe der Parameter
     print("\n" + "="*50)
-    print("📝 KONFIGURATION")
+    print("📝 CONFIGURATION")
     print("="*50)
     
-    # URL-Beispiel eingeben
-    print("🔗 Beispiel-URL: https://eref.thieme.de/ebooks/pdf/cs_13123019/302830101_003_001.pdf")
-    example_url = input("📥 Gib eine Beispiel-URL ein: ").strip()
-    
-    # Kapitel extrahieren oder eingeben
-    print(f"\n📖 Beispiel: Für Kapitel 003 gib '003' ein")
-    chapter = input("📖 Kapitel (3-stellig, z.B. 003): ").strip().zfill(3)
-    
-    # Seiten-Bereich eingeben
-    start_page = int(input("🔢 Startseite: ").strip())
-    end_page = int(input("🔢 Endseite: ").strip())
-    
-    # Base-URL aus der Beispiel-URL ableiten
-    if example_url:
-        # URL-Template erstellen
-        base_url = example_url.rsplit('_', 1)[0] + "_{:03d}.pdf"
-        print(f"\n✅ URL-Template: {base_url}")
-    else:
-        print("❌ Keine URL eingegeben!")
+    print("🔗 Example: https://eref.thieme.de/ebooks/pdf/cs_13123019/302830101_002_001.pdf")
+
+    while True:
+        start_url = input("🔗 Start-URL (full URL, e.g., https://eref.thieme.de/ebooks/pdf/cs_13123019/302830101_002_001.pdf): ").strip()
+        if start_url:
+            break
+        print("❌ Start-URL cannot be empty. Please provide a valid URL.")
+
+    base_start_url = '_'.join(start_url.rsplit('_', 2)[:-1]) + '_'
+    start_page = start_url.rsplit('_', 1)[-1].split('.')[0]
+
+    print(f"🏁 End page should only include the last value (page) after the last underscore (_). For example, if the Start-URL is {start_url}, you would input the page value (e.g., 050).")
+
+    while True:
+        end_page = input(f"🏁 End page (e.g., 050 for {base_start_url}...): ").strip()
+        if end_page.isdigit():
+            break
+        print("❌ End page must be a valid number. Please try again.")
+
+    end_url = f"{base_start_url}{end_page}.pdf"
+
+    try:
+        start_filename = start_url.split('/')[-1]
+        start_page = int(start_filename.rsplit('_', 1)[1].split('.')[0])
+
+        end_filename = end_url.split('/')[-1]
+        end_page = int(end_filename.rsplit('_', 1)[1].split('.')[0])
+
+        base_filename = start_filename.rsplit('_', 1)[0]
+        base_path = '/'.join(start_url.split('/')[:-1])
+        base_url = f"{base_path}/{base_filename}" + "_{:03d}.pdf"
+
+    except (ValueError, IndexError) as e:
+        print(f"❌ Error while parsing values: {e}")
+        print("Check the input format!")
         exit(1)
     
-    print(f"\n📋 ZUSAMMENFASSUNG:")
-    print(f"   Kapitel: {chapter}")
-    print(f"   Seiten: {start_page} bis {end_page}")
-    print(f"   Downloads: {end_page - start_page + 1} PDFs")
+    if start_page > end_page:
+        print(f"❌ Start-Site ({start_page}) is bigger than End-Site ({end_page})!")
+        exit(1)
     
-    confirm = input("\n🚀 Downloads starten? (Enter für JA, 'n' für Abbruch): ").strip()
+    print(f"\n✅ URL-Template: {base_url}")
+    print(f"\n📋 SUMMERY:")
+    print(f"   Start-Site: {start_page}")
+    print(f"   End-Site: {end_page}")
+    print(f"   Downloads: {end_page - start_page + 1} PDFs")
+    print(f"   First URL: {base_url.format(start_page)}")
+    print(f"   Last URL: {base_url.format(end_page)}")
+    
+    confirm = input("\n🚀 Start downloads? (Enter for YES, 'n' for NO): ").strip()
     if confirm.lower() == 'n':
-        print("❌ Abgebrochen.")
+        print("❌ Terminated.")
         exit(0)
     
     print("\n" + "="*50)
-    print("📥 DOWNLOAD GESTARTET")
+    print("📥 DOWNLOAD STARTED")
     print("="*50)
     
     for i in range(start_page, end_page + 1):
         url = base_url.format(i)
-        print(f"📥 Lade Seite {i}: {url}")
-        
-        try:
-            driver.get(url)
-            print(f"✅ Seite {i} geladen")
-            sleep(3)  # Etwas mehr Zeit für den Download
-        except Exception as e:
-            print(f"❌ Fehler bei Seite {i}: {e}")
-            continue
-            
-    print("\n✅ Alle Downloads angestoßen.")
+        filename = url.split('/')[-1]
+        file_path = os.path.join(download_dir, filename)
+
+        print(f"📥 Loading page {i}: {url}")
+
+        retries = 3
+        while retries > 0:
+            try:
+                driver.get(url)
+                if driver.title:
+                    print(f"✅ Page {i} loaded successfully")
+                    sleep(3)
+
+                    if os.path.exists(file_path):
+                        print(f"✅ File {filename} downloaded successfully")
+                        break
+                    else:
+                        raise Exception("File not downloaded")
+                else:
+                    raise Exception("Page did not load correctly")
+            except Exception as e:
+                retries -= 1
+                print(f"❌ Error loading page {i} or downloading file: {e}. Retries left: {retries}")
+                if retries == 0:
+                    print(f"⚠️ Skipping page {i} after multiple failed attempts.")
+                    break
+                sleep(2)
+
+    print("\n✅ All downloads started.")
     
 except Exception as e:
-    print(f"❌ Allgemeiner Fehler: {e}")
+    print(f"❌ ERROR: {e}")
 finally:
-    print("⏳ Warte auf finale Downloads...")
-    sleep(10)  # Mehr Zeit für letzte Downloads
+    print("⏳ Waiting for final downloads...")
+    sleep(10)
     driver.quit()
-    print("🔚 Browser geschlossen.")
+    print("🔚 Browser closed.")
